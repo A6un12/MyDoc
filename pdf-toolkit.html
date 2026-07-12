@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paper Bench — document tools that run in your browser</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #EDEBE3;
+    --panel: #FFFFFF;
+    --ink: #23241F;
+    --soft: #6B6A61;
+    --faint: #9A988C;
+    --line: #DBD7CA;
+    --line-strong: #C7C2B0;
+    --teal: #1F5C56;
+    --teal-dark: #163F3B;
+    --mustard: #C98A2E;
+    --red: #A8433A;
+    --shadow-stack: 3px 3px 0 var(--line), 6px 6px 0 var(--bg);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    padding: 22px 32px 18px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .topbar h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .topbar p {
+    margin: 0;
+    color: var(--soft);
+    font-size: 14px;
+  }
+
+  .layout {
+    display: flex;
+    max-width: 1100px;
+    margin: 0 auto;
+    gap: 28px;
+    padding: 28px 24px 80px;
+    align-items: flex-start;
+  }
+
+  .rail {
+    flex: 0 0 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    position: sticky;
+    top: 24px;
+  }
+  .rail button {
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    padding: 9px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    color: var(--soft);
+    cursor: pointer;
+    border-radius: 0 4px 4px 0;
+  }
+  .rail button:hover { background: rgba(31,92,86,0.06); color: var(--ink); }
+  .rail button.active {
+    background: var(--panel);
+    border-left-color: var(--teal);
+    color: var(--teal-dark);
+    box-shadow: 2px 2px 0 var(--line);
+  }
+  .rail .group-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 14px 0 4px 12px;
+  }
+  .rail .group-label:first-child { margin-top: 0; }
+
+  .stage { flex: 1; min-width: 0; }
+
+  .sheet {
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    box-shadow: var(--shadow-stack);
+    padding: 26px 30px;
+    margin-bottom: 30px;
+  }
+  .sheet h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0 0 4px;
+  }
+  .sheet .desc {
+    color: var(--soft);
+    font-size: 13.5px;
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--line-strong);
+    border-radius: 4px;
+    padding: 26px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #FBFAF7;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--teal); background: rgba(31,92,86,0.04); }
+  .dropzone p { margin: 0; font-size: 13.5px; color: var(--soft); }
+  .dropzone .big { font-size: 14px; color: var(--ink); margin-bottom: 4px; }
+  .dropzone input[type=file] { display: none; }
+
+  .filelist { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .filerow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FBFAF7;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .filerow .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filerow .meta { color: var(--faint); font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .filerow button {
+    background: transparent; border: none; color: var(--soft); cursor: pointer; font-size: 13px; padding: 2px 5px;
+  }
+  .filerow button:hover { color: var(--red); }
+
+  .field { margin: 16px 0; }
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--soft);
+    margin-bottom: 6px;
+  }
+  .field input[type=text], .field input[type=number], .field input[type=password], .field select {
+    width: 100%;
+    border: 1px solid var(--line-strong);
+    background: #FBFAF7;
+    border-radius: 3px;
+    padding: 9px 10px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+  }
+  .field input[type=range] { width: 100%; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--teal); }
+  .field .hint { font-size: 11.5px; color: var(--faint); margin-top: 5px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  .sliderval { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--teal-dark); }
+
+  button.run {
+    background: var(--teal);
+    color: #F3F1E9;
+    border: none;
+    padding: 11px 22px;
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  button.run:hover { background: var(--teal-dark); }
+  button.run:disabled { background: var(--line-strong); color: var(--faint); cursor: not-allowed; }
+
+  .status { margin-top: 14px; font-size: 13.5px; }
+  .status.err { color: var(--red); }
+  .status.ok { color: var(--teal-dark); }
+
+  .download-box {
+    margin-top: 14px;
+    background: rgba(31,92,86,0.07);
+    border: 1px solid rgba(31,92,86,0.25);
+    border-radius: 3px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13.5px;
+  }
+  .download-box a {
+    background: var(--mustard);
+    color: #2A1D08;
+    text-decoration: none;
+    padding: 7px 14px;
+    border-radius: 3px;
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 20px;
+    margin-left: 8px;
+    vertical-align: middle;
+    background: rgba(201,138,46,0.15);
+    color: #8A5F1E;
+  }
+
+  .pagecount { font-size: 12.5px; color: var(--soft); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+  footer.foot {
+    text-align: center;
+    color: var(--faint);
+    font-size: 12px;
+    padding: 0 24px 40px;
+    line-height: 1.6;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ---------- Motion ---------- */
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes dashDraw { to { stroke-dashoffset: 0; } }
+  @keyframes pulseBorder { 0%, 100% { box-shadow: 0 0 0 0 rgba(31,92,86,0.22); } 50% { box-shadow: 0 0 0 7px rgba(31,92,86,0); } }
+  @keyframes shimmer { 0% { background-position: -160px 0; } 100% { background-position: 160px 0; } }
+
+  .tool-panel { animation: fadeSlideIn 0.28s ease; }
+
+  .rail button { transition: background 0.18s, color 0.18s, transform 0.12s, border-left-color 0.18s, box-shadow 0.18s; }
+  .rail button:hover { transform: translateX(2px); }
+  .rail button.active { animation: fadeSlideIn 0.18s ease; }
+
+  .sheet { transition: box-shadow 0.2s, transform 0.2s; }
+
+  .dropzone { transition: border-color 0.18s, background 0.18s, transform 0.12s; }
+  .dropzone:active { transform: scale(0.995); }
+  .dropzone.drag { animation: pulseBorder 1s ease-in-out infinite; }
+
+  .filerow { animation: popIn 0.2s ease; transition: background 0.15s; }
+  .filerow button { transition: color 0.15s, transform 0.12s; }
+  .filerow button:hover { transform: scale(1.15); }
+
+  button.run { transition: background 0.15s, transform 0.08s, box-shadow 0.18s; }
+  button.run:not(:disabled):hover { box-shadow: 0 3px 0 var(--teal-dark); transform: translateY(-1px); }
+  button.run:not(:disabled):active { transform: translateY(1px) scale(0.99); box-shadow: none; }
+
+  .field input, .field select { transition: border-color 0.15s, box-shadow 0.15s; }
+  .field input:focus, .field select:focus { box-shadow: 0 0 0 3px rgba(31,92,86,0.12); }
+  .field input[type=range] { accent-color: var(--teal); }
+
+  .status { animation: fadeSlideIn 0.2s ease; }
+  .status.working { display: flex; align-items: center; gap: 8px; color: var(--soft); }
+
+  .spinner {
+    width: 14px; height: 14px; flex-shrink: 0;
+    border: 2px solid rgba(31,92,86,0.2);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  .progress-track {
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 45%;
+    background-image: linear-gradient(90deg, transparent, var(--teal) 50%, transparent);
+    background-size: 160px 100%;
+    background-repeat: no-repeat;
+    animation: shimmer 1.1s linear infinite;
+  }
+
+  .download-box { animation: popIn 0.25s cubic-bezier(.2,1.6,.4,1); }
+  .check-icon { color: var(--teal); flex-shrink: 0; }
+  .check-icon circle { stroke-dasharray: 63; stroke-dashoffset: 63; animation: dashDraw 0.4s ease forwards; }
+  .check-icon path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: dashDraw 0.3s ease forwards 0.15s; }
+
+  .badge { transition: transform 0.15s; }
+  .tool-btn:hover .badge { transform: scale(1.06); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Paper bench</h1>
+  <p>Document tools that run entirely in your browser. Nothing you open here is uploaded anywhere.</p>
+</div>
+
+<div class="layout">
+  <div class="rail">
+    <div class="group-label">Organize</div>
+    <button class="tool-btn active" data-tool="merge">Merge PDFs</button>
+    <button class="tool-btn" data-tool="split">Split / extract pages</button>
+    <button class="tool-btn" data-tool="delete">Delete pages</button>
+    <div class="group-label">Convert</div>
+    <button class="tool-btn" data-tool="pdf2img">PDF to image</button>
+    <button class="tool-btn" data-tool="img2pdf">Image to PDF</button>
+    <button class="tool-btn" data-tool="word2pdf">Word to PDF<span class="badge">beta</span></button>
+    <button class="tool-btn" data-tool="pdf2word">PDF to Word<span class="badge">beta</span></button>
+    <div class="group-label">Compress</div>
+    <button class="tool-btn" data-tool="compress">Compress files</button>
+    <div class="group-label">Productivity</div>
+    <button class="tool-btn" data-tool="watermark">Add watermark</button>
+    <button class="tool-btn" data-tool="pagenumbers">Page numbers</button>
+    <div class="group-label">Security</div>
+    <button class="tool-btn" data-tool="protect">Password protect<span class="badge">beta</span></button>
+    <button class="tool-btn" data-tool="unprotect">Remove password<span class="badge">beta</span></button>
+  </div>
+
+  <div class="stage">
+
+    <div class="sheet tool-panel" id="panel-merge">
+      <h2>Merge PDFs</h2>
+      <p class="desc">Combine two or more PDFs into a single file, in the order you arrange them below.</p>
+      <div class="dropzone" id="merge-drop">
+        <p class="big">Click to choose files, or drop them here</p>
+        <p>You can add more files and reorder them below</p>
+        <input type="file" id="merge-input" accept="application/pdf" multiple>
+      </div>
+      <div class="filelist" id="merge-list"></div>
+      <button class="run" id="merge-run" disabled>Merge and download</button>
+      <div id="merge-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-split">
+      <h2>Split / extract pages</h2>
+      <p class="desc">Pull specific pages out of a PDF into a new file.</p>
+      <div class="dropzone" id="split-drop">
+        <p class="big">Click to choose a file, or drop it here</p>
+        <input type="file" id="split-input" accept="application/pdf">
+      </div>
+      <div class="pagecount hidden" id="split-pagecount"></div>
+      <div class="field">
+        <label for="split-pages">Pages to extract</label>
+        <input type="text" id="split-pages" placeholder="e.g. 1-3,5,8-10">
+        <div class="hint">Comma-separate pages and ranges. Order in the box becomes the order in the output.</div>
+      </div>
+      <button class="run" id="split-run" disabled>Extract and download</button>
+      <div id="split-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-delete">
+      <h2>Delete pages</h2>
+      <p class="desc">Remove specific pages and download the rest as a new file.</p>
+      <div class="dropzone" id="delete-drop">
+        <p class="big">Click to choose a file, or drop it here</p>
+        <input type="file" id="delete-input" accept="application/pdf">
+      </div>
+      <div class="pagecount hidden" id="delete-pagecount"></div>
+      <div class="field">
+        <label for="delete-pages">Pages to delete</label>
+        <input type="text" id="delete-pages" placeholder="e.g. 2,4-6">
+      </div>
+      <button class="run" id="delete-run" disabled>Delete and download</button>
+      <div id="delete-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-pdf2img">
+      <h2>PDF to image</h2>
+      <p class="desc">Render every page of a PDF to a JPG or PNG. Multiple pages download as a zip.</p>
+      <div class="dropzone" id="pdf2img-drop">
+        <p class="big">Click to choose a PDF, or drop it here</p>
+        <input type="file" id="pdf2img-input" accept="application/pdf">
+      </div>
+      <div class="pagecount hidden" id="pdf2img-pagecount"></div>
+      <div class="row3">
+        <div class="field">
+          <label for="pdf2img-format">Format</label>
+          <select id="pdf2img-format">
+            <option value="jpeg">JPG</option>
+            <option value="png">PNG</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pdf2img-scale">Resolution</label>
+          <select id="pdf2img-scale">
+            <option value="1">1x (fast, smaller)</option>
+            <option value="2" selected>2x (sharper)</option>
+            <option value="3">3x (high-res)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pdf2img-quality">JPG quality: <span class="sliderval" id="pdf2img-quality-val">80%</span></label>
+          <input type="range" id="pdf2img-quality" min="10" max="100" value="80">
+        </div>
+      </div>
+      <button class="run" id="pdf2img-run" disabled>Convert and download</button>
+      <div id="pdf2img-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-img2pdf">
+      <h2>Image to PDF</h2>
+      <p class="desc">Turn one or more images into a single PDF, one image per page, in the order below.</p>
+      <div class="dropzone" id="img2pdf-drop">
+        <p class="big">Click to choose images, or drop them here</p>
+        <p>JPG, PNG, WebP, and GIF are all supported</p>
+        <input type="file" id="img2pdf-input" accept="image/*" multiple>
+      </div>
+      <div class="filelist" id="img2pdf-list"></div>
+      <button class="run" id="img2pdf-run" disabled>Convert and download</button>
+      <div id="img2pdf-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-word2pdf">
+      <h2>Word to PDF <span class="badge">beta</span></h2>
+      <p class="desc">Converts a .docx file's text and basic formatting to PDF. Complex layouts, tables, and tracked changes may not carry over exactly — for pixel-accurate conversion you'd want a licensed engine, as covered in the architecture plan.</p>
+      <div class="dropzone" id="word2pdf-drop">
+        <p class="big">Click to choose a .docx file, or drop it here</p>
+        <input type="file" id="word2pdf-input" accept=".docx">
+      </div>
+      <button class="run" id="word2pdf-run" disabled>Convert and download</button>
+      <div id="word2pdf-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-pdf2word">
+      <h2>PDF to Word <span class="badge">beta</span></h2>
+      <p class="desc">Extracts the text from a PDF into an editable .docx, one page's text per section. This pulls out text only — original layout, columns, and images are not preserved.</p>
+      <div class="dropzone" id="pdf2word-drop">
+        <p class="big">Click to choose a PDF, or drop it here</p>
+        <input type="file" id="pdf2word-input" accept="application/pdf">
+      </div>
+      <div class="pagecount hidden" id="pdf2word-pagecount"></div>
+      <button class="run" id="pdf2word-run" disabled>Convert and download</button>
+      <div id="pdf2word-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-compress">
+      <h2>Compress files</h2>
+      <p class="desc">Shrink PDFs and images down toward a target file size you choose. PDFs are compressed by re-rendering each page as a compressed image — this is very effective on scanned or image-heavy PDFs, but it removes selectable text, since the page becomes a picture. For text-heavy PDFs where you need to keep selectable text, there's a floor to how small the file can get.</p>
+      <div class="dropzone" id="compress-drop">
+        <p class="big">Click to choose files, or drop them here</p>
+        <p>Mix PDFs and images — each is compressed toward the same target, individually</p>
+        <input type="file" id="compress-input" accept="application/pdf,image/*" multiple>
+      </div>
+      <div class="filelist" id="compress-list"></div>
+      <div class="row2">
+        <div class="field">
+          <label for="compress-target-size">Target size (per file)</label>
+          <input type="number" id="compress-target-size" min="1" step="1" value="500">
+        </div>
+        <div class="field">
+          <label for="compress-target-unit">Unit</label>
+          <select id="compress-target-unit">
+            <option value="KB">KB</option>
+            <option value="MB" selected>MB</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint">Each file is compressed toward this size on its own. The tool searches for the highest quality that still fits — if the target is smaller than what's realistically achievable (e.g. a 50-page PDF into 100 KB), you'll get the smallest version it could produce instead, clearly labeled.</div>
+      <button class="run" id="compress-run" disabled>Compress and download</button>
+      <div id="compress-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-watermark">
+      <h2>Add watermark</h2>
+      <p class="desc">Stamp text diagonally across every page.</p>
+      <div class="dropzone" id="watermark-drop">
+        <p class="big">Click to choose a file, or drop it here</p>
+        <input type="file" id="watermark-input" accept="application/pdf">
+      </div>
+      <div class="pagecount hidden" id="watermark-pagecount"></div>
+      <div class="field">
+        <label for="watermark-text">Watermark text</label>
+        <input type="text" id="watermark-text" placeholder="e.g. DRAFT" value="DRAFT">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="watermark-size">Font size</label>
+          <input type="number" id="watermark-size" value="60" min="10" max="200">
+        </div>
+        <div class="field">
+          <label for="watermark-opacity">Opacity (%)</label>
+          <input type="number" id="watermark-opacity" value="20" min="5" max="100">
+        </div>
+      </div>
+      <button class="run" id="watermark-run" disabled>Stamp and download</button>
+      <div id="watermark-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-pagenumbers">
+      <h2>Page numbers</h2>
+      <p class="desc">Insert page numbers into the footer of every page.</p>
+      <div class="dropzone" id="pagenumbers-drop">
+        <p class="big">Click to choose a file, or drop it here</p>
+        <input type="file" id="pagenumbers-input" accept="application/pdf">
+      </div>
+      <div class="pagecount hidden" id="pagenumbers-pagecount"></div>
+      <div class="row2">
+        <div class="field">
+          <label for="pagenumbers-format">Format</label>
+          <input type="text" id="pagenumbers-format" value="Page {n} of {total}">
+        </div>
+        <div class="field">
+          <label for="pagenumbers-start">Start counting at</label>
+          <input type="number" id="pagenumbers-start" value="1" min="1">
+        </div>
+      </div>
+      <div class="field">
+        <label for="pagenumbers-position">Position</label>
+        <select id="pagenumbers-position">
+          <option value="bottom-center">Bottom center</option>
+          <option value="bottom-right">Bottom right</option>
+          <option value="bottom-left">Bottom left</option>
+        </select>
+      </div>
+      <button class="run" id="pagenumbers-run" disabled>Add numbers and download</button>
+      <div id="pagenumbers-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-protect">
+      <h2>Password protect <span class="badge">beta</span></h2>
+      <p class="desc">Encrypt a PDF with a password, using a WebAssembly build of qpdf running locally in your browser. This feature is more experimental than the others above — if it fails to load, your browser or network may be blocking the WASM file.</p>
+      <div class="dropzone" id="protect-drop">
+        <p class="big">Click to choose a file, or drop it here</p>
+        <input type="file" id="protect-input" accept="application/pdf">
+      </div>
+      <div class="field">
+        <label for="protect-password">Password to open the file</label>
+        <input type="password" id="protect-password" placeholder="Choose a password">
+      </div>
+      <button class="run" id="protect-run" disabled>Encrypt and download</button>
+      <div id="protect-status"></div>
+    </div>
+
+    <div class="sheet tool-panel hidden" id="panel-unprotect">
+      <h2>Remove password <span class="badge">beta</span></h2>
+      <p class="desc">Decrypt a password-protected PDF, using the same in-browser qpdf engine. Same caveat as above applies if it fails to load.</p>
+      <div class="dropzone" id="unprotect-drop">
+        <p class="big">Click to choose a file, or drop it here</p>
+        <input type="file" id="unprotect-input" accept="application/pdf">
+      </div>
+      <div class="field">
+        <label for="unprotect-password">Current password</label>
+        <input type="password" id="unprotect-password" placeholder="Enter the current password">
+      </div>
+      <button class="run" id="unprotect-run" disabled>Remove password and download</button>
+      <div id="unprotect-status"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="foot">
+  Everything above runs locally in this browser tab (pdf-lib, pdf.js, mammoth, html2pdf.js, docx, and qpdf-wasm). No file is uploaded to a server.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+<script>
+const { PDFDocument, degrees, rgb, StandardFonts } = PDFLib;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+function switchTool(tool) {
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+  document.querySelectorAll('.tool-panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + tool));
+}
+document.querySelectorAll('.tool-btn').forEach(b => b.addEventListener('click', () => switchTool(b.dataset.tool)));
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function setStatus(el, msg, kind) {
+  el.innerHTML = '';
+  if (!msg) return;
+  const p = document.createElement('div');
+  p.className = 'status ' + (kind || '');
+  p.textContent = msg;
+  el.appendChild(p);
+}
+
+// Shows an animated spinner + progress shimmer for in-progress operations.
+function setWorking(el, msg) {
+  el.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'status working';
+  const spin = document.createElement('span');
+  spin.className = 'spinner';
+  const txt = document.createElement('span');
+  txt.textContent = msg;
+  wrap.appendChild(spin);
+  wrap.appendChild(txt);
+  el.appendChild(wrap);
+  const track = document.createElement('div');
+  track.className = 'progress-track';
+  const bar = document.createElement('div');
+  bar.className = 'progress-bar';
+  track.appendChild(bar);
+  el.appendChild(track);
+}
+
+const CHECK_ICON = '<svg class="check-icon" viewBox="0 0 24 24" width="17" height="17" fill="none">' +
+  '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>' +
+  '<path d="M7 12.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</svg>';
+
+function downloadBox(container, blob, filename, note) {
+  const box = document.createElement('div');
+  box.className = 'download-box';
+  const url = URL.createObjectURL(blob);
+  const label = document.createElement('span');
+  label.style.cssText = 'display:flex; align-items:center; gap:8px;';
+  label.innerHTML = CHECK_ICON + '<span>' + (note || 'Ready: ' + filename) + ' (' + fmtSize(blob.size) + ')</span>';
+  box.appendChild(label);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.textContent = 'Download';
+  box.appendChild(a);
+  container.appendChild(box);
+}
+
+function parsePageSelection(input, maxPages) {
+  const trimmed = input.trim();
+  if (!trimmed) throw new Error('Enter page numbers or ranges, e.g. 1-3,5,8-10.');
+  if (trimmed.toLowerCase() === 'all') return Array.from({ length: maxPages }, (_, i) => i);
+  const parts = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const order = [];
+  for (const part of parts) {
+    if (/^\d+$/.test(part)) {
+      const n = parseInt(part, 10);
+      if (n < 1 || n > maxPages) throw new Error('Page ' + n + ' is out of range (1-' + maxPages + ').');
+      if (!seen.has(n - 1)) { seen.add(n - 1); order.push(n - 1); }
+    } else if (/^\d+-\d+$/.test(part)) {
+      let [a, b] = part.split('-').map(s => parseInt(s, 10));
+      if (a > b) [a, b] = [b, a];
+      if (a < 1 || b > maxPages) throw new Error('Range ' + part + ' is out of bounds (1-' + maxPages + ').');
+      for (let n = a; n <= b; n++) { if (!seen.has(n - 1)) { seen.add(n - 1); order.push(n - 1); } }
+    } else {
+      throw new Error('Could not read "' + part + '". Use numbers or ranges like 1-3,5.');
+    }
+  }
+  return order;
+}
+
+function setupDropzone(zoneId, inputId, onFiles) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => onFiles(Array.from(input.files)));
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    onFiles(Array.from(e.dataTransfer.files));
+  });
+}
+
+function renderReorderList(listElId, files, onChange) {
+  const list = document.getElementById(listElId);
+  list.innerHTML = '';
+  files.forEach((f, i) => {
+    const row = document.createElement('div');
+    row.className = 'filerow';
+    row.innerHTML = '<span class="name">' + (i + 1) + '. ' + f.name + '</span><span class="meta">' + fmtSize(f.size) + '</span>';
+    const up = document.createElement('button'); up.textContent = '↑'; up.title = 'Move up';
+    up.onclick = () => { if (i > 0) { [files[i-1], files[i]] = [files[i], files[i-1]]; onChange(); } };
+    const down = document.createElement('button'); down.textContent = '↓'; down.title = 'Move down';
+    down.onclick = () => { if (i < files.length - 1) { [files[i+1], files[i]] = [files[i], files[i+1]]; onChange(); } };
+    const rm = document.createElement('button'); rm.textContent = '✕'; rm.title = 'Remove';
+    rm.onclick = () => { files.splice(i, 1); onChange(); };
+    row.appendChild(up); row.appendChild(down); row.appendChild(rm);
+    list.appendChild(row);
+  });
+}
+
+/* ---------- Merge ---------- */
+let mergeFiles = [];
+function renderMergeList() {
+  renderReorderList('merge-list', mergeFiles, renderMergeList);
+  document.getElementById('merge-run').disabled = mergeFiles.length < 2;
+}
+setupDropzone('merge-drop', 'merge-input', files => {
+  mergeFiles = mergeFiles.concat(files.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')));
+  renderMergeList();
+});
+
+document.getElementById('merge-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('merge-status');
+  const btn = document.getElementById('merge-run');
+  btn.disabled = true;
+  setWorking(statusEl, 'Merging…');
+  try {
+    const outDoc = await PDFDocument.create();
+    for (const file of mergeFiles) {
+      const bytes = await file.arrayBuffer();
+      const srcDoc = await PDFDocument.load(bytes);
+      const pages = await outDoc.copyPages(srcDoc, srcDoc.getPageIndices());
+      pages.forEach(p => outDoc.addPage(p));
+    }
+    const outBytes = await outDoc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'merged.pdf');
+  } catch (e) {
+    setStatus(statusEl, 'Could not merge these files: ' + e.message, 'err');
+  }
+  btn.disabled = mergeFiles.length < 2;
+});
+
+/* ---------- Generic single-file tool loader ---------- */
+function setupSingleFileTool(name, accept) {
+  const state = { file: null, doc: null, pageCount: 0 };
+  setupDropzone(name + '-drop', name + '-input', async (files) => {
+    const file = files[0];
+    if (!file) return;
+    const statusEl = document.getElementById(name + '-status');
+    const runBtn = document.getElementById(name + '-run');
+    const countEl = document.getElementById(name + '-pagecount');
+    runBtn.disabled = true;
+    if (countEl) countEl.classList.add('hidden');
+    if (accept === 'pdf') {
+      setWorking(statusEl, 'Reading file…');
+      try {
+        const bytes = await file.arrayBuffer();
+        const doc = await PDFDocument.load(bytes);
+        state.file = file;
+        state.doc = doc;
+        state.pageCount = doc.getPageCount();
+        if (countEl) { countEl.textContent = file.name + ' — ' + state.pageCount + ' page' + (state.pageCount === 1 ? '' : 's'); countEl.classList.remove('hidden'); }
+        setStatus(statusEl, '', '');
+        runBtn.disabled = false;
+      } catch (e) {
+        setStatus(statusEl, 'Could not read this PDF: ' + e.message, 'err');
+      }
+    } else {
+      state.file = file;
+      setStatus(statusEl, file.name + ' loaded.', '');
+      runBtn.disabled = false;
+    }
+  });
+  return state;
+}
+
+/* ---------- Split / extract ---------- */
+const splitState = setupSingleFileTool('split', 'pdf');
+document.getElementById('split-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('split-status');
+  try {
+    if (!splitState.doc) return;
+    const indices = parsePageSelection(document.getElementById('split-pages').value, splitState.pageCount);
+    const outDoc = await PDFDocument.create();
+    const bytes = await splitState.file.arrayBuffer();
+    const srcDoc = await PDFDocument.load(bytes);
+    const pages = await outDoc.copyPages(srcDoc, indices);
+    pages.forEach(p => outDoc.addPage(p));
+    const outBytes = await outDoc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'extracted.pdf');
+  } catch (e) {
+    setStatus(statusEl, e.message, 'err');
+  }
+});
+
+/* ---------- Delete pages ---------- */
+const deleteState = setupSingleFileTool('delete', 'pdf');
+document.getElementById('delete-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('delete-status');
+  try {
+    if (!deleteState.doc) return;
+    const toDelete = new Set(parsePageSelection(document.getElementById('delete-pages').value, deleteState.pageCount));
+    if (toDelete.size >= deleteState.pageCount) throw new Error('That would delete every page. Leave at least one page in the file.');
+    const keep = [];
+    for (let i = 0; i < deleteState.pageCount; i++) if (!toDelete.has(i)) keep.push(i);
+    const outDoc = await PDFDocument.create();
+    const bytes = await deleteState.file.arrayBuffer();
+    const srcDoc = await PDFDocument.load(bytes);
+    const pages = await outDoc.copyPages(srcDoc, keep);
+    pages.forEach(p => outDoc.addPage(p));
+    const outBytes = await outDoc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'pages-removed.pdf');
+  } catch (e) {
+    setStatus(statusEl, e.message, 'err');
+  }
+});
+
+/* ---------- PDF to image ---------- */
+const pdf2imgState = setupSingleFileTool('pdf2img', 'pdf');
+const q2val = document.getElementById('pdf2img-quality');
+q2val.addEventListener('input', () => document.getElementById('pdf2img-quality-val').textContent = q2val.value + '%');
+
+document.getElementById('pdf2img-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('pdf2img-status');
+  const btn = document.getElementById('pdf2img-run');
+  try {
+    if (!pdf2imgState.file) return;
+    btn.disabled = true;
+    setWorking(statusEl, 'Rendering pages…');
+    const format = document.getElementById('pdf2img-format').value;
+    const scale = parseFloat(document.getElementById('pdf2img-scale').value);
+    const quality = parseInt(document.getElementById('pdf2img-quality').value, 10) / 100;
+    const bytes = await pdf2imgState.file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const mime = format === 'png' ? 'image/png' : 'image/jpeg';
+    const ext = format === 'png' ? 'png' : 'jpg';
+    const blobs = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const blob = await new Promise(res => canvas.toBlob(res, mime, quality));
+      blobs.push(blob);
+    }
+    const baseName = pdf2imgState.file.name.replace(/\.pdf$/i, '');
+    if (blobs.length === 1) {
+      setStatus(statusEl, '', '');
+      downloadBox(statusEl, blobs[0], baseName + '.' + ext);
+    } else {
+      const zip = new JSZip();
+      blobs.forEach((b, i) => zip.file(baseName + '-page' + (i + 1) + '.' + ext, b));
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      setStatus(statusEl, '', '');
+      downloadBox(statusEl, zipBlob, baseName + '-images.zip', blobs.length + ' images zipped');
+    }
+  } catch (e) {
+    setStatus(statusEl, 'Could not convert this PDF: ' + (e.message || e), 'err');
+  }
+  btn.disabled = false;
+});
+
+/* ---------- Image to PDF ---------- */
+let img2pdfFiles = [];
+function renderImg2pdfList() {
+  renderReorderList('img2pdf-list', img2pdfFiles, renderImg2pdfList);
+  document.getElementById('img2pdf-run').disabled = img2pdfFiles.length < 1;
+}
+setupDropzone('img2pdf-drop', 'img2pdf-input', files => {
+  img2pdfFiles = img2pdfFiles.concat(files.filter(f => f.type.startsWith('image/')));
+  renderImg2pdfList();
+});
+
+async function normalizeToJpegBytes(file) {
+  const arrBuf = await file.arrayBuffer();
+  const blob = new Blob([arrBuf], { type: file.type });
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(bitmap, 0, 0);
+  const jpegBlob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+  return { bytes: new Uint8Array(await jpegBlob.arrayBuffer()), width: bitmap.width, height: bitmap.height };
+}
+
+document.getElementById('img2pdf-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('img2pdf-status');
+  const btn = document.getElementById('img2pdf-run');
+  try {
+    btn.disabled = true;
+    setWorking(statusEl, 'Building PDF…');
+    const doc = await PDFDocument.create();
+    for (const file of img2pdfFiles) {
+      let embedded, width, height;
+      const type = file.type;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      try {
+        if (type === 'image/jpeg' || type === 'image/jpg') {
+          embedded = await doc.embedJpg(bytes);
+        } else if (type === 'image/png') {
+          embedded = await doc.embedPng(bytes);
+        } else {
+          const norm = await normalizeToJpegBytes(file);
+          embedded = await doc.embedJpg(norm.bytes);
+        }
+        width = embedded.width;
+        height = embedded.height;
+      } catch (inner) {
+        const norm = await normalizeToJpegBytes(file);
+        embedded = await doc.embedJpg(norm.bytes);
+        width = embedded.width;
+        height = embedded.height;
+      }
+      const pageW = width * 0.75;
+      const pageH = height * 0.75;
+      const page = doc.addPage([pageW, pageH]);
+      page.drawImage(embedded, { x: 0, y: 0, width: pageW, height: pageH });
+    }
+    const outBytes = await doc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'images.pdf');
+  } catch (e) {
+    setStatus(statusEl, 'Could not build the PDF: ' + (e.message || e), 'err');
+  }
+  btn.disabled = img2pdfFiles.length < 1;
+});
+
+/* ---------- Word to PDF (beta) ---------- */
+let word2pdfFile = null;
+setupDropzone('word2pdf-drop', 'word2pdf-input', (files) => {
+  const f = files.find(f => f.name.toLowerCase().endsWith('.docx'));
+  if (!f) return;
+  word2pdfFile = f;
+  document.getElementById('word2pdf-run').disabled = false;
+  setStatus(document.getElementById('word2pdf-status'), f.name + ' loaded.', '');
+});
+document.getElementById('word2pdf-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('word2pdf-status');
+  const btn = document.getElementById('word2pdf-run');
+  if (!word2pdfFile) return;
+  btn.disabled = true;
+  setWorking(statusEl, 'Reading document…');
+  let container = null;
+  try {
+    const arrayBuffer = await word2pdfFile.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    container = document.createElement('div');
+    container.style.cssText = 'position:fixed; left:-9999px; top:0; width:700px; padding:20px; font-family:Georgia,serif; font-size:13px; line-height:1.5; background:#fff; color:#111;';
+    container.innerHTML = result.value;
+    document.body.appendChild(container);
+    setWorking(statusEl, 'Rendering PDF…');
+    const blob = await html2pdf().set({
+      margin: 36,
+      filename: 'converted.pdf',
+      jsPDF: { unit: 'pt', format: 'a4' },
+      html2canvas: { scale: 2 }
+    }).from(container).outputPdf('blob');
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, word2pdfFile.name.replace(/\.docx$/i, '') + '.pdf');
+  } catch (e) {
+    setStatus(statusEl, 'Could not convert this document: ' + (e.message || e) + '. This is a beta feature — complex .docx files (heavy tables, embedded objects) are the most likely to trip it up.', 'err');
+  }
+  if (container) container.remove();
+  btn.disabled = false;
+});
+
+/* ---------- PDF to Word (beta) ---------- */
+const pdf2wordState = setupSingleFileTool('pdf2word', 'pdf');
+document.getElementById('pdf2word-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('pdf2word-status');
+  const btn = document.getElementById('pdf2word-run');
+  if (!pdf2wordState.file) return;
+  btn.disabled = true;
+  setWorking(statusEl, 'Extracting text…');
+  try {
+    const bytes = await pdf2wordState.file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const children = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(it => it.str).join(' ');
+      const paragraphs = pageText.split(/\s{2,}|(?<=[.!?])\s(?=[A-Z])/).filter(Boolean);
+      if (paragraphs.length === 0) paragraphs.push('');
+      paragraphs.forEach((p, idx) => {
+        children.push(new docx.Paragraph({ text: p.trim() }));
+      });
+      if (i < pdf.numPages) {
+        children.push(new docx.Paragraph({ children: [new docx.PageBreak()] }));
+      }
+    }
+    const doc = new docx.Document({ sections: [{ children }] });
+    const blob = await docx.Packer.toBlob(doc);
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, pdf2wordState.file.name.replace(/\.pdf$/i, '') + '.docx');
+  } catch (e) {
+    setStatus(statusEl, 'Could not extract text from this PDF: ' + (e.message || e) + '. Scanned PDFs with no text layer need OCR first, which this beta tool does not include.', 'err');
+  }
+  btn.disabled = false;
+});
+
+/* ---------- Compress ---------- */
+let compressFiles = [];
+function renderCompressList() {
+  renderReorderList('compress-list', compressFiles, renderCompressList);
+  document.getElementById('compress-run').disabled = compressFiles.length < 1;
+}
+setupDropzone('compress-drop', 'compress-input', files => {
+  compressFiles = compressFiles.concat(files.filter(f => f.type === 'application/pdf' || f.type.startsWith('image/')));
+  renderCompressList();
+});
+async function compressImageFile(file, quality, scale) {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+  return blob;
+}
+
+async function compressPdfFile(file, quality, scale) {
+  const bytes = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  const outDoc = await PDFDocument.create();
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: scale * 2 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const jpegBlob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+    const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+    const embedded = await outDoc.embedJpg(jpegBytes);
+    const pageW = viewport.width * 0.5;
+    const pageH = viewport.height * 0.5;
+    const newPage = outDoc.addPage([pageW, pageH]);
+    newPage.drawImage(embedded, { x: 0, y: 0, width: pageW, height: pageH });
+  }
+  const outBytes = await outDoc.save();
+  return new Blob([outBytes], { type: 'application/pdf' });
+}
+
+const SCALE_LADDER = [1, 0.75, 0.5, 0.35, 0.25];
+
+// Binary-searches the JPEG quality (0.1-0.95) at a fixed scale for the highest
+// quality whose output still fits under targetBytes. Returns { blob, fits }.
+async function searchQualityForTarget(renderFn, targetBytes, iterations) {
+  let lo = 0.1, hi = 0.95;
+  let best = null;
+  let smallest = null;
+  for (let i = 0; i < iterations; i++) {
+    const mid = (lo + hi) / 2;
+    const blob = await renderFn(mid);
+    if (!smallest || blob.size < smallest.size) smallest = blob;
+    if (blob.size <= targetBytes) {
+      best = blob;
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  if (best) return { blob: best, fits: true };
+  return { blob: smallest, fits: false };
+}
+
+// Walks down the resolution ladder, binary-searching quality at each step,
+// until the target size is hit or the ladder is exhausted.
+async function compressFileToTarget(file, isPdf, targetBytes, onProgress) {
+  let smallestOverall = null;
+  for (const scale of SCALE_LADDER) {
+    onProgress('at ' + Math.round(scale * 100) + '% resolution…');
+    const renderFn = (quality) => isPdf
+      ? compressPdfFile(file, quality, scale)
+      : compressImageFile(file, quality, scale);
+    const result = await searchQualityForTarget(renderFn, targetBytes, 6);
+    if (!smallestOverall || result.blob.size < smallestOverall.size) smallestOverall = result.blob;
+    if (result.fits) return { blob: result.blob, fits: true };
+  }
+  return { blob: smallestOverall, fits: false };
+}
+
+document.getElementById('compress-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('compress-status');
+  const btn = document.getElementById('compress-run');
+  if (compressFiles.length < 1) return;
+  const targetValue = parseFloat(document.getElementById('compress-target-size').value);
+  const unit = document.getElementById('compress-target-unit').value;
+  if (!targetValue || targetValue <= 0) { setStatus(statusEl, 'Enter a target size greater than zero.', 'err'); return; }
+  const targetBytes = targetValue * (unit === 'MB' ? 1024 * 1024 : 1024);
+  btn.disabled = true;
+  try {
+    const results = [];
+    for (const file of compressFiles) {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      if (file.size <= targetBytes) {
+        const blob = new Blob([await file.arrayBuffer()], { type: file.type || (isPdf ? 'application/pdf' : 'image/jpeg') });
+        results.push({ name: file.name, blob, originalSize: file.size, fits: true, alreadySmall: true });
+        continue;
+      }
+      setWorking(statusEl, 'Compressing ' + file.name + '…');
+      const { blob, fits } = await compressFileToTarget(file, isPdf, targetBytes, (msg) => {
+        setWorking(statusEl, 'Compressing ' + file.name + ' — ' + msg);
+      });
+      const outName = baseName + '-compressed.' + (isPdf ? 'pdf' : 'jpg');
+      results.push({ name: outName, blob, originalSize: file.size, fits });
+    }
+    setStatus(statusEl, '', '');
+    const anyMissedTarget = results.some(r => !r.fits);
+    if (results.length === 1) {
+      const r = results[0];
+      let note = r.name + ' — ' + fmtSize(r.originalSize) + ' → ' + fmtSize(r.blob.size);
+      if (r.alreadySmall) note += ' (already under target, left as-is)';
+      else if (!r.fits) note += ' (could not reach ' + fmtSize(targetBytes) + " — this is the smallest this tool could produce)";
+      downloadBox(statusEl, r.blob, r.name, note);
+    } else {
+      const zip = new JSZip();
+      let totalBefore = 0, totalAfter = 0;
+      results.forEach(r => { zip.file(r.name, r.blob); totalBefore += r.originalSize; totalAfter += r.blob.size; });
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      let note = results.length + ' files — ' + fmtSize(totalBefore) + ' → ' + fmtSize(totalAfter);
+      if (anyMissedTarget) note += ' (one or more files could not reach the target size — smallest possible version used instead)';
+      downloadBox(statusEl, zipBlob, 'compressed-files.zip', note);
+    }
+  } catch (e) {
+    setStatus(statusEl, 'Could not compress one or more files: ' + (e.message || e), 'err');
+  }
+  btn.disabled = false;
+});
+
+/* ---------- Watermark ---------- */
+const watermarkState = setupSingleFileTool('watermark', 'pdf');
+document.getElementById('watermark-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('watermark-status');
+  try {
+    if (!watermarkState.doc) return;
+    const text = document.getElementById('watermark-text').value.trim();
+    if (!text) throw new Error('Enter watermark text.');
+    const size = parseFloat(document.getElementById('watermark-size').value) || 60;
+    const opacityPct = parseFloat(document.getElementById('watermark-opacity').value);
+    const opacity = Math.min(Math.max((isNaN(opacityPct) ? 20 : opacityPct) / 100, 0.05), 1);
+    const bytes = await watermarkState.file.arrayBuffer();
+    const doc = await PDFDocument.load(bytes);
+    const font = await doc.embedFont(StandardFonts.HelveticaBold);
+    const angleDeg = 45;
+    const angleRad = (angleDeg * Math.PI) / 180;
+    doc.getPages().forEach(page => {
+      const { width, height } = page.getSize();
+      const textWidth = font.widthOfTextAtSize(text, size);
+      const x = width / 2 - (textWidth / 2) * Math.cos(angleRad);
+      const y = height / 2 - (textWidth / 2) * Math.sin(angleRad);
+      page.drawText(text, { x, y, size, font, color: rgb(0.2, 0.2, 0.2), opacity, rotate: degrees(angleDeg) });
+    });
+    const outBytes = await doc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'watermarked.pdf');
+  } catch (e) {
+    setStatus(statusEl, e.message, 'err');
+  }
+});
+
+/* ---------- Page numbers ---------- */
+const pagenumbersState = setupSingleFileTool('pagenumbers', 'pdf');
+document.getElementById('pagenumbers-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('pagenumbers-status');
+  try {
+    if (!pagenumbersState.doc) return;
+    const format = document.getElementById('pagenumbers-format').value || 'Page {n} of {total}';
+    const start = parseInt(document.getElementById('pagenumbers-start').value, 10) || 1;
+    const position = document.getElementById('pagenumbers-position').value;
+    const bytes = await pagenumbersState.file.arrayBuffer();
+    const doc = await PDFDocument.load(bytes);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const size = 10;
+    const pages = doc.getPages();
+    const total = pages.length;
+    pages.forEach((page, i) => {
+      const label = format.replace('{n}', String(start + i)).replace('{total}', String(total));
+      const { width } = page.getSize();
+      const textWidth = font.widthOfTextAtSize(label, size);
+      let x;
+      if (position === 'bottom-left') x = 36;
+      else if (position === 'bottom-right') x = width - textWidth - 36;
+      else x = width / 2 - textWidth / 2;
+      page.drawText(label, { x, y: 24, size, font, color: rgb(0.25, 0.25, 0.25) });
+    });
+    const outBytes = await doc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'numbered.pdf');
+  } catch (e) {
+    setStatus(statusEl, e.message, 'err');
+  }
+});
+
+/* ---------- Password protect / remove (qpdf-wasm, experimental) ---------- */
+let qpdfModulePromise = null;
+function loadQpdf() {
+  if (!qpdfModulePromise) {
+    qpdfModulePromise = import('https://cdn.jsdelivr.net/npm/@neslinesli93/qpdf-wasm@0.3.0/dist/qpdf.js')
+      .then(mod => mod.default({
+        locateFile: () => 'https://cdn.jsdelivr.net/npm/@neslinesli93/qpdf-wasm@0.3.0/dist/qpdf.wasm'
+      }));
+  }
+  return qpdfModulePromise;
+}
+
+let protectFile = null;
+setupDropzone('protect-drop', 'protect-input', (files) => {
+  protectFile = files[0];
+  if (!protectFile) return;
+  document.getElementById('protect-run').disabled = false;
+  setStatus(document.getElementById('protect-status'), protectFile.name + ' loaded.', '');
+});
+document.getElementById('protect-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('protect-status');
+  const password = document.getElementById('protect-password').value;
+  if (!password) { setStatus(statusEl, 'Enter a password.', 'err'); return; }
+  if (!protectFile) return;
+  setWorking(statusEl, 'Loading the encryption engine (first run only)…');
+  try {
+    const qpdf = await loadQpdf();
+    const bytes = new Uint8Array(await protectFile.arrayBuffer());
+    qpdf.FS.writeFile('/input.pdf', bytes);
+    setWorking(statusEl, 'Encrypting…');
+    qpdf.callMain(['--encrypt', password, password, '256', '--', '/input.pdf', '/output.pdf']);
+    const outBytes = qpdf.FS.readFile('/output.pdf');
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'protected.pdf');
+  } catch (e) {
+    setStatus(statusEl, 'The in-browser encryption engine failed to run (' + (e.message || e) + '). This tool is experimental — your network or browser may be blocking the WebAssembly file. A desktop tool or the qpdf command line is a reliable fallback.', 'err');
+  }
+});
+
+let unprotectFile = null;
+setupDropzone('unprotect-drop', 'unprotect-input', (files) => {
+  unprotectFile = files[0];
+  if (!unprotectFile) return;
+  document.getElementById('unprotect-run').disabled = false;
+  setStatus(document.getElementById('unprotect-status'), unprotectFile.name + ' loaded.', '');
+});
+document.getElementById('unprotect-run').addEventListener('click', async () => {
+  const statusEl = document.getElementById('unprotect-status');
+  const password = document.getElementById('unprotect-password').value;
+  if (!password) { setStatus(statusEl, 'Enter the current password.', 'err'); return; }
+  if (!unprotectFile) return;
+  setWorking(statusEl, 'Loading the encryption engine (first run only)…');
+  try {
+    const qpdf = await loadQpdf();
+    const bytes = new Uint8Array(await unprotectFile.arrayBuffer());
+    qpdf.FS.writeFile('/input.pdf', bytes);
+    setWorking(statusEl, 'Removing password…');
+    qpdf.callMain(['--password=' + password, '--decrypt', '/input.pdf', '/output.pdf']);
+    const outBytes = qpdf.FS.readFile('/output.pdf');
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+    setStatus(statusEl, '', '');
+    downloadBox(statusEl, blob, 'unprotected.pdf');
+  } catch (e) {
+    setStatus(statusEl, 'Could not remove the password (' + (e.message || e) + '). Check the password is correct, or the in-browser engine may have failed to load — see note above.', 'err');
+  }
+});
+</script>
+</body>
+</html>
