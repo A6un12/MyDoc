@@ -643,6 +643,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dis
 const stageEl = document.querySelector('.stage');
 const PANEL_ORDER = Array.from(document.querySelectorAll('.tool-panel'));
 let currentTool = 'merge';
+let panelOpen = true;
 
 function isMobileLayout() {
   return window.matchMedia('(max-width: 760px)').matches;
@@ -652,7 +653,7 @@ function positionActivePanel(tool) {
   // Always restore every panel to the stage first, in original order,
   // so nothing is left stranded in the rail from a previous selection.
   PANEL_ORDER.forEach(p => stageEl.appendChild(p));
-  if (isMobileLayout()) {
+  if (isMobileLayout() && panelOpen) {
     const btn = document.querySelector('.tool-btn[data-tool="' + tool + '"]');
     const panel = document.getElementById('panel-' + tool);
     if (btn && panel) btn.insertAdjacentElement('afterend', panel);
@@ -661,15 +662,27 @@ function positionActivePanel(tool) {
 
 function switchTool(tool) {
   currentTool = tool;
+  panelOpen = true;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
   document.querySelectorAll('.tool-panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + tool));
   positionActivePanel(tool);
-  if (isMobileLayout()) {
-    const btn = document.querySelector('.tool-btn[data-tool="' + tool + '"]');
-    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
-document.querySelectorAll('.tool-btn').forEach(b => b.addEventListener('click', () => switchTool(b.dataset.tool)));
+
+function closeActivePanel() {
+  panelOpen = false;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tool-panel').forEach(p => p.classList.add('hidden'));
+  positionActivePanel(currentTool);
+}
+
+document.querySelectorAll('.tool-btn').forEach(b => b.addEventListener('click', () => {
+  const tool = b.dataset.tool;
+  if (isMobileLayout() && tool === currentTool && panelOpen) {
+    closeActivePanel();
+  } else {
+    switchTool(tool);
+  }
+}));
 
 let resizeTimer;
 window.addEventListener('resize', () => {
