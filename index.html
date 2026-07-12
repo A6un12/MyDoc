@@ -309,6 +309,60 @@
 
   .badge { transition: transform 0.15s; }
   .tool-btn:hover .badge { transform: scale(1.06); }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 760px) {
+    .topbar { padding: 16px 16px 14px; }
+    .topbar h1 { font-size: 21px; }
+    .topbar p { font-size: 13px; }
+
+    .layout { flex-direction: column; padding: 16px 14px 56px; gap: 16px; }
+
+    .rail {
+      flex-direction: column;
+      flex: 0 0 auto;
+      width: 100%;
+      position: static;
+      gap: 3px;
+    }
+    .rail .group-label { margin: 14px 0 4px 12px; }
+    .rail .group-label:first-child { margin-top: 0; }
+    .rail button {
+      width: 100%;
+      white-space: normal;
+      border-left: 3px solid transparent;
+      border-bottom: none;
+      border-radius: 0 4px 4px 0;
+      padding: 10px 12px;
+    }
+    .rail button.active {
+      border-left-color: var(--teal);
+      box-shadow: 2px 2px 0 var(--line);
+      background: var(--panel);
+    }
+
+    .stage { padding: 0; width: 100%; }
+
+    .sheet { padding: 18px 16px; margin-bottom: 20px; box-shadow: 3px 3px 0 var(--line); }
+    .sheet h2 { font-size: 17px; }
+    .sheet .desc { font-size: 13px; }
+
+    .row2, .row3 { grid-template-columns: 1fr; gap: 12px; }
+
+    .dropzone { padding: 20px 12px; }
+
+    .download-box { flex-direction: column; align-items: stretch; gap: 10px; }
+    .download-box a { text-align: center; }
+
+    .filerow { flex-wrap: wrap; }
+    .filerow .name { flex-basis: 100%; }
+  }
+
+  @media (max-width: 420px) {
+    .topbar h1 { font-size: 19px; }
+    .sheet { padding: 16px 12px; }
+    button.run { width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -586,11 +640,43 @@
 const { PDFDocument, degrees, rgb, StandardFonts } = PDFLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
+const stageEl = document.querySelector('.stage');
+const PANEL_ORDER = Array.from(document.querySelectorAll('.tool-panel'));
+let currentTool = 'merge';
+
+function isMobileLayout() {
+  return window.matchMedia('(max-width: 760px)').matches;
+}
+
+function positionActivePanel(tool) {
+  // Always restore every panel to the stage first, in original order,
+  // so nothing is left stranded in the rail from a previous selection.
+  PANEL_ORDER.forEach(p => stageEl.appendChild(p));
+  if (isMobileLayout()) {
+    const btn = document.querySelector('.tool-btn[data-tool="' + tool + '"]');
+    const panel = document.getElementById('panel-' + tool);
+    if (btn && panel) btn.insertAdjacentElement('afterend', panel);
+  }
+}
+
 function switchTool(tool) {
+  currentTool = tool;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
   document.querySelectorAll('.tool-panel').forEach(p => p.classList.toggle('hidden', p.id !== 'panel-' + tool));
+  positionActivePanel(tool);
+  if (isMobileLayout()) {
+    const btn = document.querySelector('.tool-btn[data-tool="' + tool + '"]');
+    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 document.querySelectorAll('.tool-btn').forEach(b => b.addEventListener('click', () => switchTool(b.dataset.tool)));
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => positionActivePanel(currentTool), 150);
+});
+positionActivePanel(currentTool);
 
 function fmtSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
