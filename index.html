@@ -685,9 +685,16 @@ document.querySelectorAll('.tool-btn').forEach(b => b.addEventListener('click', 
 }));
 
 let resizeTimer;
+let lastIsMobile = isMobileLayout();
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => positionActivePanel(currentTool), 150);
+  resizeTimer = setTimeout(() => {
+    const nowMobile = isMobileLayout();
+    if (nowMobile !== lastIsMobile) {
+      lastIsMobile = nowMobile;
+      positionActivePanel(currentTool);
+    }
+  }, 150);
 });
 positionActivePanel(currentTool);
 
